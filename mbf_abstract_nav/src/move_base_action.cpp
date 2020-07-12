@@ -47,7 +47,7 @@ namespace mbf_abstract_nav
 {
 
 MoveBaseAction::MoveBaseAction(const std::string &name,
-                               const RobotInformation &robot_info,
+                               const mbf_utility::RobotInformation &robot_info,
                                const std::vector<std::string> &behaviors)
   :  name_(name), robot_info_(robot_info), private_nh_("~"),
      action_client_exe_path_(private_nh_, "exe_path"),
@@ -158,6 +158,7 @@ void MoveBaseAction::start(GoalHandle &goal_handle)
     goal_handle.setAborted(move_base_result, move_base_result.message);
     return;
   }
+  goal_pose_ = goal.target_pose;
 
   // wait for server connections
   if (!action_client_get_path_.waitForServer(connection_timeout) ||
@@ -218,7 +219,7 @@ void MoveBaseAction::actionExePathFeedback(
     else if (last_oscillation_reset_ + oscillation_timeout_ < ros::Time::now())
     {
       std::stringstream oscillation_msgs;
-      oscillation_msgs << "Robot is oscillating for " << ((ros::Time::now() - last_oscillation_reset_).toSec()) << "s!";
+      oscillation_msgs << "Robot is oscillating for " << (ros::Time::now() - last_oscillation_reset_).toSec() << "s!";
       ROS_WARN_STREAM_NAMED("exe_path", oscillation_msgs.str());
       action_client_exe_path_.cancelGoal();
 
@@ -229,11 +230,8 @@ void MoveBaseAction::actionExePathFeedback(
       else
       {
         mbf_msgs::MoveBaseResult move_base_result;
-        move_base_result.outcome = OSCILLATING;
-        if(recovery_enabled_)
-          move_base_result.message = oscillation_msgs.str() + " No recovery behaviors for the move_base action are defined!";
-        else
-          move_base_result.message = oscillation_msgs.str() + " Recovery is disabled for the move_base action! use the param \"enable_recovery\"";
+        move_base_result.outcome = mbf_msgs::MoveBaseResult::OSCILLATION;
+        move_base_result.message = oscillation_msgs.str();
         move_base_result.final_pose = robot_pose_;
         move_base_result.angle_to_goal = move_base_feedback_.angle_to_goal;
         move_base_result.dist_to_goal = move_base_feedback_.dist_to_goal;
@@ -247,10 +245,12 @@ void MoveBaseAction::actionGetPathDone(
     const actionlib::SimpleClientGoalState &state,
     const mbf_msgs::GetPathResultConstPtr &result_ptr)
 {
+  if (action_state_ == CANCELED)
+    return;
+
   action_state_ =  FAILED;
 
   const mbf_msgs::GetPathResult &result = *(result_ptr.get());
-  const mbf_msgs::MoveBaseGoal& goal = *(goal_handle_.getGoal().get());
   mbf_msgs::MoveBaseResult move_base_result;
   switch (state.state_)
   {
@@ -294,8 +294,8 @@ void MoveBaseAction::actionGetPathDone(
         // copy result from get_path action
         move_base_result.outcome = result.outcome;
         move_base_result.message = result.message;
-        move_base_result.dist_to_goal = static_cast<float>(mbf_utility::distance(robot_pose_, goal.target_pose));
-        move_base_result.angle_to_goal = static_cast<float>(mbf_utility::angle(robot_pose_, goal.target_pose));
+        move_base_result.dist_to_goal = static_cast<float>(mbf_utility::distance(robot_pose_, goal_pose_));
+        move_base_result.angle_to_goal = static_cast<float>(mbf_utility::angle(robot_pose_, goal_pose_));
         move_base_result.final_pose = robot_pose_;
 
         ROS_WARN_STREAM_NAMED("move_base", "Abort the execution of the planner: " << result.message);
@@ -309,8 +309,8 @@ void MoveBaseAction::actionGetPathDone(
       // copy result from get_path action
       move_base_result.outcome = result.outcome;
       move_base_result.message = result.message;
-      move_base_result.dist_to_goal = static_cast<float>(mbf_utility::distance(robot_pose_, goal.target_pose));
-      move_base_result.angle_to_goal = static_cast<float>(mbf_utility::angle(robot_pose_, goal.target_pose));
+      move_base_result.dist_to_goal = static_cast<float>(mbf_utility::distance(robot_pose_, goal_pose_));
+      move_base_result.angle_to_goal = static_cast<float>(mbf_utility::angle(robot_pose_, goal_pose_));
       move_base_result.final_pose = robot_pose_;
       goal_handle_.setCanceled(move_base_result, state.getText());
       break;
@@ -356,12 +356,14 @@ void MoveBaseAction::actionExePathDone(
     const actionlib::SimpleClientGoalState &state,
     const mbf_msgs::ExePathResultConstPtr &result_ptr)
 {
+  if (action_state_ == CANCELED)
+    return;
+
   action_state_ =  FAILED;
 
   ROS_DEBUG_STREAM_NAMED("move_base", "Action \"exe_path\" finished.");
 
   const mbf_msgs::ExePathResult& result = *(result_ptr.get());
-  const mbf_msgs::MoveBaseGoal& goal = *(goal_handle_.getGoal().get());
   mbf_msgs::MoveBaseResult move_base_result;
 
   // copy result from get_path action
@@ -478,17 +480,22 @@ void MoveBaseAction::actionRecoveryDone(
     const actionlib::SimpleClientGoalState &state,
     const mbf_msgs::RecoveryResultConstPtr &result_ptr)
 {
+  // give the robot some time to stop oscillating after executing the recovery behavior
+  last_oscillation_reset_ = ros::Time::now();
+
+  if (action_state_ == CANCELED)
+    return;
+
   action_state_ =  FAILED;  // unless recovery succeeds or gets canceled...
 
   const mbf_msgs::RecoveryResult& result = *(result_ptr.get());
-  const mbf_msgs::MoveBaseGoal& goal = *(goal_handle_.getGoal().get());
   mbf_msgs::MoveBaseResult move_base_result;
 
   // copy result from get_path action
   move_base_result.outcome = result.outcome;
   move_base_result.message = result.message;
-  move_base_result.dist_to_goal = static_cast<float>(mbf_utility::distance(robot_pose_, goal.target_pose));
-  move_base_result.angle_to_goal = static_cast<float>(mbf_utility::angle(robot_pose_, goal.target_pose));
+  move_base_result.dist_to_goal = static_cast<float>(mbf_utility::distance(robot_pose_, goal_pose_));
+  move_base_result.angle_to_goal = static_cast<float>(mbf_utility::angle(robot_pose_, goal_pose_));
   move_base_result.final_pose = robot_pose_;
 
   switch (state.state_)
@@ -596,6 +603,4 @@ void MoveBaseAction::actionGetPathReplanningDone(
       boost::bind(&MoveBaseAction::actionGetPathReplanningDone, this, _1, _2)); // replanning
 }
 
-
 } /* namespace mbf_abstract_nav */
-

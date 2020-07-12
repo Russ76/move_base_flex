@@ -39,7 +39,7 @@
  */
 
 #include <nav_msgs/Path.h>
-#include <sstream>
+
 #include "mbf_abstract_nav/abstract_navigation_server.h"
 
 namespace mbf_abstract_nav
@@ -66,12 +66,6 @@ AbstractNavigationServer::AbstractNavigationServer(const TFPtr &tf_listener_ptr)
       move_base_action_(name_action_move_base, robot_info_, recovery_plugin_manager_.getLoadedNames())
 {
   ros::NodeHandle nh;
-
-  // oscillation timeout and distance
-  double oscillation_timeout;
-  private_nh_.param("oscillation_timeout", oscillation_timeout, 0.0);
-  oscillation_timeout_ = ros::Duration(oscillation_timeout);
-  private_nh_.param("oscillation_distance", oscillation_distance_, 0.02);
 
   goal_pub_ = nh.advertise<geometry_msgs::PoseStamped>("current_goal", 1);
 
@@ -129,7 +123,6 @@ AbstractNavigationServer::~AbstractNavigationServer()
 
 void AbstractNavigationServer::callActionGetPath(ActionServerGetPath::GoalHandle goal_handle)
 {
-  ROS_INFO_STREAM_NAMED("get_path", "Start action \"get_path\"");
   const mbf_msgs::GetPathGoal &goal = *(goal_handle.getGoal().get());
   const geometry_msgs::Point &p = goal.target_pose.pose.position;
 
@@ -159,10 +152,9 @@ void AbstractNavigationServer::callActionGetPath(ActionServerGetPath::GoalHandle
   }
 
   mbf_abstract_core::AbstractPlanner::Ptr planner_plugin = planner_plugin_manager_.getPlugin(planner_name);
-  ROS_INFO_STREAM_NAMED("get_path", "Using the planner \"" << planner_name << "\" of type \""
-                                         << planner_plugin_manager_.getType(planner_name) << "\"");
+  ROS_DEBUG_STREAM_NAMED("get_path", "Start action \"get_path\" using planner \"" << planner_name
+                        << "\" of type \"" << planner_plugin_manager_.getType(planner_name) << "\"");
 
-  goal_handle.setAccepted();
 
   if(planner_plugin)
   {
@@ -178,7 +170,7 @@ void AbstractNavigationServer::callActionGetPath(ActionServerGetPath::GoalHandle
     result.outcome = mbf_msgs::GetPathResult::INTERNAL_ERROR;
     result.message = "Internal Error: \"planner_plugin\" pointer should not be a null pointer!";
     ROS_FATAL_STREAM_NAMED("get_path", result.message);
-    goal_handle.setAborted(result, result.message);
+    goal_handle.setRejected(result, result.message);
   }
 }
 
@@ -190,8 +182,6 @@ void AbstractNavigationServer::cancelActionGetPath(ActionServerGetPath::GoalHand
 
 void AbstractNavigationServer::callActionExePath(ActionServerExePath::GoalHandle goal_handle)
 {
-  ROS_INFO_STREAM_NAMED("exe_path", "Start action \"exe_path\"");
-
   const mbf_msgs::ExePathGoal &goal = *(goal_handle.getGoal().get());
 
   std::string controller_name;
@@ -220,10 +210,9 @@ void AbstractNavigationServer::callActionExePath(ActionServerExePath::GoalHandle
   }
 
   mbf_abstract_core::AbstractController::Ptr controller_plugin = controller_plugin_manager_.getPlugin(controller_name);
-  ROS_INFO_STREAM("Using the controller \"" << controller_name
-                                            << "\" of type \"" << controller_plugin_manager_.getType(controller_name) << "\"");
+  ROS_DEBUG_STREAM_NAMED("exe_path", "Start action \"exe_path\" using controller \"" << controller_name
+                        << "\" of type \"" << controller_plugin_manager_.getType(controller_name) << "\"");
 
-  goal_handle.setAccepted();
 
   if(controller_plugin)
   {
@@ -239,7 +228,7 @@ void AbstractNavigationServer::callActionExePath(ActionServerExePath::GoalHandle
     result.outcome = mbf_msgs::ExePathResult::INTERNAL_ERROR;
     result.message = "Internal Error: \"controller_plugin\" pointer should not be a null pointer!";
     ROS_FATAL_STREAM_NAMED("exe_path", result.message);
-    goal_handle.setAborted(result, result.message);
+    goal_handle.setRejected(result, result.message);
   }
 }
 
@@ -251,7 +240,6 @@ void AbstractNavigationServer::cancelActionExePath(ActionServerExePath::GoalHand
 
 void AbstractNavigationServer::callActionRecovery(ActionServerRecovery::GoalHandle goal_handle)
 {
-  ROS_INFO_STREAM_NAMED("recovery", "Start action \"recovery\"");
   const mbf_msgs::RecoveryGoal &goal = *(goal_handle.getGoal().get());
 
   std::string recovery_name;
@@ -281,10 +269,9 @@ void AbstractNavigationServer::callActionRecovery(ActionServerRecovery::GoalHand
   }
 
   mbf_abstract_core::AbstractRecovery::Ptr recovery_plugin = recovery_plugin_manager_.getPlugin(recovery_name);
-  ROS_INFO_STREAM("Using the recovery \"" << recovery_name
-                                            << "\" of type \"" << recovery_plugin_manager_.getType(recovery_name) << "\"");
+  ROS_DEBUG_STREAM_NAMED("recovery", "Start action \"recovery\" using recovery \"" << recovery_name
+                        << "\" of type \"" << recovery_plugin_manager_.getType(recovery_name) << "\"");
 
-  goal_handle.setAccepted();
 
   if(recovery_plugin)
   {
@@ -299,7 +286,7 @@ void AbstractNavigationServer::callActionRecovery(ActionServerRecovery::GoalHand
     result.outcome = mbf_msgs::RecoveryResult::INTERNAL_ERROR;
     result.message = "Internal Error: \"recovery_plugin\" pointer should not be a null pointer!";
     ROS_FATAL_STREAM_NAMED("recovery", result.message);
-    goal_handle.setAborted(result, result.message);
+    goal_handle.setRejected(result, result.message);
   }
 }
 
@@ -311,7 +298,7 @@ void AbstractNavigationServer::cancelActionRecovery(ActionServerRecovery::GoalHa
 
 void AbstractNavigationServer::callActionMoveBase(ActionServerMoveBase::GoalHandle goal_handle)
 {
-  ROS_INFO_STREAM_NAMED("move_base", "Start action \"move_base\"");
+  ROS_DEBUG_STREAM_NAMED("move_base", "Start action \"move_base\"");
   move_base_action_.start(goal_handle);
 }
 
@@ -322,29 +309,26 @@ void AbstractNavigationServer::cancelActionMoveBase(ActionServerMoveBase::GoalHa
 }
 
 mbf_abstract_nav::AbstractPlannerExecution::Ptr AbstractNavigationServer::newPlannerExecution(
-    const std::string name,
-    const mbf_abstract_core::AbstractPlanner::Ptr plugin_ptr)
+    const std::string &plugin_name,
+    const mbf_abstract_core::AbstractPlanner::Ptr &plugin_ptr)
 {
-  return boost::make_shared<mbf_abstract_nav::AbstractPlannerExecution>(name, plugin_ptr, last_config_,
-                                                                        boost::function<void()>(),
-                                                                        boost::function<void()>());
+  return boost::make_shared<mbf_abstract_nav::AbstractPlannerExecution>(plugin_name, plugin_ptr, last_config_);
 }
 
 mbf_abstract_nav::AbstractControllerExecution::Ptr AbstractNavigationServer::newControllerExecution(
-    const std::string name,
-    const mbf_abstract_core::AbstractController::Ptr plugin_ptr)
+    const std::string &plugin_name,
+    const mbf_abstract_core::AbstractController::Ptr &plugin_ptr)
 {
-  return boost::make_shared<mbf_abstract_nav::AbstractControllerExecution>(name, plugin_ptr, vel_pub_, goal_pub_,
-      tf_listener_ptr_, last_config_, boost::function<void()>(), boost::function<void()>());
+  return boost::make_shared<mbf_abstract_nav::AbstractControllerExecution>(plugin_name, plugin_ptr, vel_pub_, goal_pub_,
+                                                                           tf_listener_ptr_, last_config_);
 }
 
 mbf_abstract_nav::AbstractRecoveryExecution::Ptr AbstractNavigationServer::newRecoveryExecution(
-    const std::string name,
-    const mbf_abstract_core::AbstractRecovery::Ptr plugin_ptr)
+    const std::string &plugin_name,
+    const mbf_abstract_core::AbstractRecovery::Ptr &plugin_ptr)
 {
-  return boost::make_shared<mbf_abstract_nav::AbstractRecoveryExecution>(name, plugin_ptr, tf_listener_ptr_, last_config_,
-                                                                         boost::function<void()>(),
-                                                                         boost::function<void()>());
+  return boost::make_shared<mbf_abstract_nav::AbstractRecoveryExecution>(plugin_name, plugin_ptr,
+                                                                         tf_listener_ptr_, last_config_);
 }
 
 void AbstractNavigationServer::startActionServers()
@@ -394,16 +378,5 @@ void AbstractNavigationServer::stop(){
   recovery_action_.cancelAll();
   move_base_action_.cancel();
 }
-
-void AbstractNavigationServer::fillExePathResult(uint32_t outcome, const std::string &message,
-                                                 mbf_msgs::ExePathResult &result)
-{
-  result.outcome = outcome;
-  result.message = message;
-  result.final_pose = robot_pose_;
-  result.dist_to_goal = static_cast<float>(mbf_utility::distance(robot_pose_, goal_pose_));
-  result.angle_to_goal = static_cast<float>(mbf_utility::angle(robot_pose_, goal_pose_));
-}
-
 
 } /* namespace mbf_abstract_nav */

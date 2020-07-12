@@ -2,6 +2,35 @@
 Changelog for package mbf_costmap_nav
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.3.2 (2020-05-25)
+------------------
+* Remove dependency on base_local_planner and move FootprintHelper class to mbf_costmap_nav and make it static
+
+0.3.1 (2020-04-07)
+------------------
+* Ensure that check_costmap_mutex is destroyed after timer.
+* Avoid crash on shutdown by stop shutdown_costmap_timer on destructor
+  and explicitly call the costmap_nav_srv destructor
+
+0.3.0 (2020-03-31)
+------------------
+* add output for cancel method if nav_core plugin is wrapped
+* unify license declaration to BSD-3
+
+0.2.5 (2019-10-11)
+------------------
+* Add clear_on_shutdown functionality
+* Do not pass boost functions to abstract server to (de)activate costmaps.
+  Run instead abstract methods (possibly) overridden in the costmap server,
+  all costmap-related handling refactored to a new CostmapWrapper class
+* On controller execution, check that local costmap is current
+
+0.2.4 (2019-06-16)
+------------------
+* Add check_point_cost service
+* Lock costmaps on clear_costmaps service
+* Replace recursive mutexes with normal ones when not needed
+
 0.2.3 (2018-11-14)
 ------------------
 * single publisher for controller execution objects

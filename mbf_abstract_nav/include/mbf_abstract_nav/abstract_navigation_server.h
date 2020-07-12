@@ -42,7 +42,6 @@
 #define MBF_ABSTRACT_NAV__ABSTRACT_NAVIGATION_SERVER_H_
 
 #include <string>
-#include <stdint.h>
 
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/recursive_mutex.hpp>
@@ -50,7 +49,6 @@
 #include <actionlib/server/action_server.h>
 #include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <tf/transform_listener.h>
 
 #include <mbf_utility/navigation_utility.h>
 
@@ -68,6 +66,7 @@
 
 namespace mbf_abstract_nav
 {
+
 /**
  * @defgroup abstract_server Abstract Server
  * @brief Classes belonging to the Abstract Server level.
@@ -124,11 +123,9 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
      * @brief Constructor, reads all parameters and initializes all action servers and creates the plugin instances.
      *        Parameters are the concrete implementations of the abstract classes.
      * @param tf_listener_ptr shared pointer to the common TransformListener buffering transformations
-     * @param planning_ptr shared pointer to an object of the concrete derived implementation of the AbstractPlannerExecution
-     * @param moving_ptr shared pointer to an object of the concrete derived implementation of the AbstractControllerExecution
-     * @param recovery_ptr shared pointer to an object of the concrete derived implementation of the AbstractRecoveryExecution
      */
     AbstractNavigationServer(const TFPtr &tf_listener_ptr);
+
     /**
      * @brief Destructor
      */
@@ -136,27 +133,42 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
 
     virtual void stop();
 
-    //! shared pointer to a new @ref planner_execution "PlannerExecution"
+    /**
+     * @brief Create a new abstract planner execution.
+     * @param plugin_name Name of the planner to use.
+     * @param plugin_ptr Shared pointer to the plugin to use.
+     * @return Shared pointer to a new @ref planner_execution "PlannerExecution".
+     */
     virtual mbf_abstract_nav::AbstractPlannerExecution::Ptr newPlannerExecution(
-        const std::string plugin_name,
-        const mbf_abstract_core::AbstractPlanner::Ptr plugin_ptr);
+        const std::string &plugin_name,
+        const mbf_abstract_core::AbstractPlanner::Ptr &plugin_ptr);
 
-    //! shared pointer to a new @ref controller_execution "ControllerExecution"
+    /**
+     * @brief Create a new abstract controller execution.
+     * @param plugin_name Name of the controller to use.
+     * @param plugin_ptr Shared pointer to the plugin to use.
+     * @return Shared pointer to a new @ref controller_execution "ControllerExecution".
+     */
     virtual mbf_abstract_nav::AbstractControllerExecution::Ptr newControllerExecution(
-        const std::string plugin_name,
-        const mbf_abstract_core::AbstractController::Ptr plugin_ptr);
+        const std::string &plugin_name,
+        const mbf_abstract_core::AbstractController::Ptr &plugin_ptr);
 
-    //! shared pointer to a new @ref recovery_execution "RecoveryExecution"
+    /**
+     * @brief Create a new abstract recovery behavior execution.
+     * @param plugin_name Name of the recovery behavior to run.
+     * @param plugin_ptr Shared pointer to the plugin to use
+     * @return Shared pointer to a new @ref recovery_execution "RecoveryExecution".
+     */
     virtual mbf_abstract_nav::AbstractRecoveryExecution::Ptr newRecoveryExecution(
-        const std::string plugin_name,
-        const mbf_abstract_core::AbstractRecovery::Ptr plugin_ptr);
+        const std::string &plugin_name,
+        const mbf_abstract_core::AbstractRecovery::Ptr &plugin_ptr);
 
     /**
      * @brief Loads the plugin associated with the given planner_type parameter.
      * @param planner_type The type of the planner plugin to load.
      * @return Pointer to the loaded plugin
      */
-    virtual mbf_abstract_core::AbstractPlanner::Ptr loadPlannerPlugin(const std::string& planner_type) = 0;
+    virtual mbf_abstract_core::AbstractPlanner::Ptr loadPlannerPlugin(const std::string &planner_type) = 0;
 
     /**
      * @brief Loads the plugin associated with the given controller type parameter
@@ -164,14 +176,14 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
      * @return A shared pointer to a new loaded controller, if the controller plugin was loaded successfully,
      *         an empty pointer otherwise.
      */
-    virtual mbf_abstract_core::AbstractController::Ptr loadControllerPlugin(const std::string& controller_type) = 0;
+    virtual mbf_abstract_core::AbstractController::Ptr loadControllerPlugin(const std::string &controller_type) = 0;
 
     /**
      * @brief Loads a Recovery plugin associated with given recovery type parameter
      * @param recovery_name The name of the Recovery plugin
      * @return A shared pointer to a Recovery plugin, if the plugin was loaded successfully, an empty pointer otherwise.
      */
-    virtual mbf_abstract_core::AbstractRecovery::Ptr loadRecoveryPlugin(const std::string& recovery_type) = 0;
+    virtual mbf_abstract_core::AbstractRecovery::Ptr loadRecoveryPlugin(const std::string &recovery_type) = 0;
 
     /**
      * @brief Pure virtual method, the derived class has to implement. Depending on the plugin base class,
@@ -181,8 +193,8 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
      * @return true if init succeeded, false otherwise
      */
     virtual bool initializePlannerPlugin(
-        const std::string& name,
-        const mbf_abstract_core::AbstractPlanner::Ptr& planner_ptr
+        const std::string &name,
+        const mbf_abstract_core::AbstractPlanner::Ptr &planner_ptr
     ) = 0;
 
     /**
@@ -193,8 +205,8 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
      * @return true if init succeeded, false otherwise
      */
     virtual bool initializeControllerPlugin(
-        const std::string& name,
-        const mbf_abstract_core::AbstractController::Ptr& controller_ptr
+        const std::string &name,
+        const mbf_abstract_core::AbstractController::Ptr &controller_ptr
     ) = 0;
 
     /**
@@ -205,8 +217,8 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
      * @return true if init succeeded, false otherwise
      */
     virtual bool initializeRecoveryPlugin(
-        const std::string& name,
-        const mbf_abstract_core::AbstractRecovery::Ptr& behavior_ptr
+        const std::string &name,
+        const mbf_abstract_core::AbstractRecovery::Ptr &behavior_ptr
     ) = 0;
 
 
@@ -257,13 +269,6 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
      */
     virtual void initializeServerComponents();
 
-    /**
-     * @brief Computes the current robot pose (robot_frame_) in the global frame (global_frame_).
-     * @param robot_pose Reference to the robot_pose message object to be filled.
-     * @return true, if the current robot pose could be computed, false otherwise.
-     */
-    bool getRobotPose(geometry_msgs::PoseStamped &robot_pose);
-
   protected:
 
     /**
@@ -274,14 +279,6 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
      */
     bool transformPlanToGlobalFrame(std::vector<geometry_msgs::PoseStamped> &plan,
                                     std::vector<geometry_msgs::PoseStamped> &global_plan);
-
-    /**
-     * @brief Utility method to fill the ExePath action result in a single line
-     * @param outcome ExePath action outcome
-     * @param message ExePath action message
-     * @param result The action result to fill
-     */
-    void fillExePathResult(uint32_t outcome, const std::string &message, mbf_msgs::ExePathResult &result);
 
     /**
      * @brief Start a dynamic reconfigure server.
@@ -342,31 +339,13 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
     //! shared pointer to the common TransformListener
     const TFPtr tf_listener_ptr_;
 
-    //! current robot pose; moving controller is responsible to update it by calling getRobotPose
-    geometry_msgs::PoseStamped robot_pose_;
-
-    //! current goal pose; used to compute remaining distance and angle
-    geometry_msgs::PoseStamped goal_pose_;
-
-    //! timeout after a oscillation is detected
-    ros::Duration oscillation_timeout_;
-
-    //! minimal move distance to not detect an oscillation
-    double oscillation_distance_;
-
-    //! true, if recovery behavior for the MoveBase action is enabled.
-    bool recovery_enabled_;
-
-    //! true, if clearing rotate is allowed.
-    bool clearing_rotation_allowed_;
-
     //! cmd_vel publisher for all controller execution objects
     ros::Publisher vel_pub_;
 
     //! current_goal publisher for all controller execution objects
     ros::Publisher goal_pub_;
 
-    RobotInformation robot_info_;
+    mbf_utility::RobotInformation robot_info_;
 
     ControllerAction controller_action_;
     PlannerAction planner_action_;
@@ -376,4 +355,4 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
 
 } /* namespace mbf_abstract_nav */
 
-#endif /* navigation_controller.h */
+#endif /* MBF_ABSTRACT_NAV__ABSTRACT_NAVIGATION_SERVER_H_ */

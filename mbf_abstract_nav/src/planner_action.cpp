@@ -42,12 +42,13 @@
 
 #include "mbf_abstract_nav/planner_action.h"
 
-namespace mbf_abstract_nav{
+namespace mbf_abstract_nav
+{
 
 PlannerAction::PlannerAction(
     const std::string &name,
-    const RobotInformation &robot_info)
-  : AbstractAction(name, robot_info, boost::bind(&mbf_abstract_nav::PlannerAction::run, this, _1, _2)), path_seq_count_(0)
+    const mbf_utility::RobotInformation &robot_info)
+  : AbstractActionBase(name, robot_info, boost::bind(&mbf_abstract_nav::PlannerAction::run, this, _1, _2)), path_seq_count_(0)
 {
   ros::NodeHandle private_nh("~");
   // informative topics: current navigation goal
@@ -74,7 +75,7 @@ void PlannerAction::run(GoalHandle &goal_handle, AbstractPlannerExecution &execu
   {
     start_pose = goal.start_pose;
     const geometry_msgs::Point& p = start_pose.pose.position;
-    ROS_INFO_STREAM_NAMED(name_, "Use the given start pose (" << p.x << ", " << p.y << ", " << p.z << ").");
+    ROS_DEBUG_STREAM_NAMED(name_, "Use the given start pose (" << p.x << ", " << p.y << ", " << p.z << ").");
   }
   else
   {
@@ -145,14 +146,8 @@ void PlannerAction::run(GoalHandle &goal_handle, AbstractPlannerExecution &execu
       case AbstractPlannerExecution::PLANNING:
         if (execution.isPatienceExceeded())
         {
-          ROS_INFO_STREAM_NAMED(name_, "Global planner patience has been exceeded! "
-              << "Cancel planning...");
-          if (!execution.cancel())
-          {
-            ROS_WARN_STREAM_THROTTLE_NAMED(2.0, name_, "Cancel planning failed or is not supported; "
-                "must wait until current plan finish!");
-            execution.stop(); // try to interrupt planning.
-          }
+          ROS_INFO_STREAM_NAMED(name_, "Global planner patience has been exceeded! Cancel planning...");
+          execution.cancel();
         }
         else
         {
@@ -288,4 +283,3 @@ bool PlannerAction::transformPlanToGlobalFrame(
 }
 
 } /* namespace mbf_abstract_nav */
-

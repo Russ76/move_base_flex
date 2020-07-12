@@ -48,8 +48,9 @@
 #include <mbf_msgs/ExePathAction.h>
 #include <mbf_msgs/RecoveryAction.h>
 
+#include <mbf_utility/robot_information.h>
+
 #include "mbf_abstract_nav/MoveBaseFlexConfig.h"
-#include "mbf_abstract_nav/robot_information.h"
 
 
 namespace mbf_abstract_nav
@@ -66,7 +67,9 @@ class MoveBaseAction
 
   typedef actionlib::ActionServer<mbf_msgs::MoveBaseAction>::GoalHandle GoalHandle;
 
-  MoveBaseAction(const std::string &name, const RobotInformation &robot_info, const std::vector<std::string> &controllers);
+  MoveBaseAction(const std::string &name,
+                 const mbf_utility::RobotInformation &robot_info,
+                 const std::vector<std::string> &controllers);
 
   ~MoveBaseAction();
 
@@ -108,17 +111,23 @@ class MoveBaseAction
   geometry_msgs::PoseStamped last_oscillation_pose_;
   ros::Time last_oscillation_reset_;
 
+  //! timeout after a oscillation is detected
   ros::Duration oscillation_timeout_;
 
+  //! minimal move distance to not detect an oscillation
   double oscillation_distance_;
 
   GoalHandle goal_handle_;
 
   std::string name_;
 
-  RobotInformation robot_info_;
+  mbf_utility::RobotInformation robot_info_;
 
+  //! current robot pose; updated with exe_path action feedback
   geometry_msgs::PoseStamped robot_pose_;
+
+  //! current goal pose; used to compute remaining distance and angle
+  geometry_msgs::PoseStamped goal_pose_;
 
   ros::NodeHandle private_nh_;
 
@@ -135,6 +144,7 @@ class MoveBaseAction
   ros::Rate replanning_rate_;
   boost::mutex replanning_mtx_;
 
+  //! true, if recovery behavior for the MoveBase action is enabled.
   bool recovery_enabled_;
 
   mbf_msgs::MoveBaseFeedback move_base_feedback_;

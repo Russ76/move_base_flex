@@ -42,12 +42,10 @@
 #define MBF_ABSTRACT_NAV__ABSTRACT_PLANNER_EXECUTION_H_
 
 #include <map>
-#include <stdint.h>
 #include <string>
 #include <vector>
 
 #include <geometry_msgs/PoseStamped.h>
-#include <tf/transform_listener.h>
 
 #include <mbf_abstract_core/abstract_planner.h>
 #include <mbf_utility/types.h>
@@ -84,11 +82,9 @@ namespace mbf_abstract_nav
      * @brief Constructor
      * @param condition Thread sleep condition variable, to wake up connected threads
      */
-    AbstractPlannerExecution(const std::string name,
-                             const mbf_abstract_core::AbstractPlanner::Ptr planner_ptr,
-                             const MoveBaseFlexConfig &config,
-                             boost::function<void()> setup_fn,
-                             boost::function<void()> cleanup_fn);
+    AbstractPlannerExecution(const std::string &name,
+                             const mbf_abstract_core::AbstractPlanner::Ptr &planner_ptr,
+                             const MoveBaseFlexConfig &config);
 
     /**
      * @brief Destructor

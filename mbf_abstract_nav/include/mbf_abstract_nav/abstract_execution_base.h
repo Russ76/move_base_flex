@@ -39,10 +39,11 @@
 #ifndef MBF_ABSTRACT_NAV__ABSTRACT_EXECUTION_BASE_H_
 #define MBF_ABSTRACT_NAV__ABSTRACT_EXECUTION_BASE_H_
 
-#include <mbf_abstract_nav/MoveBaseFlexConfig.h>
 #include <boost/thread.hpp>
 #include <boost/chrono/duration.hpp>
 #include <boost/chrono/thread_clock.hpp>
+
+#include <mbf_abstract_nav/MoveBaseFlexConfig.h>
 
 namespace mbf_abstract_nav
 {
@@ -51,9 +52,7 @@ class AbstractExecutionBase
 {
  public:
 
-  AbstractExecutionBase(std::string name,
-                        boost::function<void()> setup_fn,
-                        boost::function<void()> cleanup_fn);
+  AbstractExecutionBase(std::string name);
 
   virtual bool start();
 
@@ -70,16 +69,6 @@ class AbstractExecutionBase
   void waitForStateUpdate(boost::chrono::microseconds const &duration);
 
   /**
-   * @brief Implementation-specific setup function called right before execution; empty on abstract server
-   */
-  boost::function<void()> setup_fn_;
-
-  /**
-   * @brief Implementation-specific cleanup function called right after execution; empty on abstract server
-   */
-  boost::function<void()> cleanup_fn_;
-
-  /**
    * @brief Gets the current plugin execution outcome
    */
   uint32_t getOutcome();
@@ -94,8 +83,17 @@ class AbstractExecutionBase
    */
   std::string getName();
 
- protected:
+  /**
+   * @brief Optional implementation-specific setup function, called right before execution.
+   */
+  virtual void preRun() { };
 
+  /**
+   * @brief Optional implementation-specific cleanup function, called right after execution.
+   */
+  virtual void postRun() { };
+
+protected:
   virtual void run() = 0;
 
   //! condition variable to wake up control thread
@@ -116,6 +114,7 @@ class AbstractExecutionBase
   //! the plugin name; not the plugin type!
   std::string name_;
 };
+
 } /* namespace mbf_abstract_nav */
 
 #endif  /* MBF_ABSTRACT_NAV__ABSTRACT_EXECUTION_BASE_H_ */

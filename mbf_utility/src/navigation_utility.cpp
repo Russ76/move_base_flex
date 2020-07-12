@@ -38,6 +38,8 @@
  *
  */
 
+#include <tf/tf.h>
+
 #include "mbf_utility/navigation_utility.h"
 
 namespace mbf_utility
@@ -111,6 +113,59 @@ bool transformPose(const TF &tf,
   {
     ROS_WARN_STREAM("Failed to transform pose from frame '" <<  in.header.frame_id << " ' into frame '"
                     << target_frame << "' with exception: " << ex.what());
+    return false;
+  }
+  return true;
+}
+
+bool transformPoint(const TF &tf,
+                    const std::string &target_frame,
+                    const ros::Time &target_time,
+                    const ros::Duration &timeout,
+                    const geometry_msgs::PointStamped &in,
+                    const std::string &fixed_frame,
+                    geometry_msgs::PointStamped &out)
+{
+  std::string error_msg;
+
+#ifdef USE_OLD_TF
+  bool success = tf.waitForTransform(target_frame,
+                                     target_time,
+                                     in.header.frame_id,
+                                     in.header.stamp,
+                                     fixed_frame,
+                                     timeout,
+                                     ros::Duration(0.01),
+                                     &error_msg);
+#else
+  bool success = tf.canTransform(target_frame,
+                                 target_time,
+                                 in.header.frame_id,
+                                 in.header.stamp,
+                                 fixed_frame,
+                                 timeout,
+                                 &error_msg);
+#endif
+
+  if (!success)
+  {
+    ROS_WARN_STREAM("Failed to look up transform from frame '" << in.header.frame_id << "' into frame '" << target_frame
+                                                               << "': " << error_msg);
+    return false;
+  }
+
+  try
+  {
+#ifdef USE_OLD_TF
+    tf.transformPoint(target_frame, target_time, in, fixed_frame, out);
+#else
+    tf.transform(in, out, target_frame, target_time, fixed_frame);
+#endif
+  }
+  catch (const TFException &ex)
+  {
+    ROS_WARN_STREAM("Failed to transform point from frame '" <<  in.header.frame_id << " ' into frame '"
+                                                            << target_frame << "' with exception: " << ex.what());
     return false;
   }
   return true;

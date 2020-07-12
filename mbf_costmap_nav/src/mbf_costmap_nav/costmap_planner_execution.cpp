@@ -45,13 +45,11 @@ namespace mbf_costmap_nav
 {
 
 CostmapPlannerExecution::CostmapPlannerExecution(
-    const std::string name,
+    const std::string &planner_name,
     const mbf_costmap_core::CostmapPlanner::Ptr &planner_ptr,
-    CostmapPtr &costmap_ptr,
-    const MoveBaseFlexConfig &config,
-    boost::function<void()> setup_fn,
-    boost::function<void()> cleanup_fn)
-      : AbstractPlannerExecution(name, planner_ptr, toAbstract(config), setup_fn, cleanup_fn),
+    const CostmapWrapper::Ptr &costmap_ptr,
+    const MoveBaseFlexConfig &config)
+      : AbstractPlannerExecution(planner_name, planner_ptr, toAbstract(config)),
         costmap_ptr_(costmap_ptr)
 {
   ros::NodeHandle private_nh("~");
@@ -72,8 +70,8 @@ mbf_abstract_nav::MoveBaseFlexConfig CostmapPlannerExecution::toAbstract(const M
   return abstract_config;
 }
 
-uint32_t CostmapPlannerExecution::makePlan(const geometry_msgs::PoseStamped& start,
-                                           const geometry_msgs::PoseStamped& goal,
+uint32_t CostmapPlannerExecution::makePlan(const geometry_msgs::PoseStamped &start,
+                                           const geometry_msgs::PoseStamped &goal,
                                            double tolerance,
                                            std::vector<geometry_msgs::PoseStamped> &plan,
                                            double &cost,
